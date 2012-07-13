@@ -1,0 +1,5 @@
+To get this to work you need to configure mysql and the python mysql bindings manually. But most of if not all of the python libaries needed can be accessed using the command:
+
+source venv/bin/activate
+
+which will initialize a virtual python environment
