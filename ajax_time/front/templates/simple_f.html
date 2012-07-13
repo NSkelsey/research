@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<script src="/static/jquery-1.7.2.js"></script>
+<script type=text/javascript>
+ /* $(document).ready(function(){
+     $(".table_fields").css("display","none");
+     $("label[for!='id_patient_field_selector']").css("display", "none");
+     $("#id_patient_field_selector").css("display", "block");
+
+      $("#id_type_selector").change(function(){
+          $(".table_fields").css("display","none");
+          var val = $("#id_type_selector").val();
+
+          val = "id_" + val + "_field_selector";
+
+          var label = "label[for!='" + val + "']";
+          var label_id = "label[for='" + val + "']";
+          val = "#" + val;
+
+          $(label).css("display", "none");
+          $(label_id).css("display","block");
+
+          $(val).css("display", "block");
+          $(val).css("display", "block");
+
+
+        });
+
+
+
+      
+      }
+      );*/
+
+    $(document).ready(function() {
+        $("#patient_field_selector_add").click(function() {
+          $('#out_table > tbody:last').append('<tr>...</tr><tr>...</tr>');
+          
+        });
+    });
+
+
+
+</script>
+
+
+<form id="out_form" method=post action="out_form">
+  <table id=out_table>
+   <tr>
+      <th> {{ outform.type_selector.label_tag }}  </th> <td> {{ outform.type_selector }} </td>    </tr>
+
+    {% for field in outform %}
+    {% if field.name != "type_selector" %}
+    <tr id=id_{{ field.name }}>
+      <th> {{ field.label_tag }}  </th> <td> {{ field }} </td> <td> <a id={{ field.name }}_add >+</a></td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </table>
+  <input id="btn" type=submit value=Submit?
+  >
+ </form>
+{% endblock content %}
