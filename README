@@ -1,3 +1,29 @@
+
+                      ___ _ _  _ ____
+                       |  | |\/| |___
+     ...               |  | |  | |___
+   ,'   '.               ___ ____
+  ;       ;               |  |  |
+  |       |               |  |__|
+  |       |         _ _ _ ____ ____ _  _
+  | _, ,_ |         | | | |  | |__/ |_/
+  '´ | | `'         |_|_| |__| |  \ | \_
+     | |    _    _              
+     | |  .|_|_,' |         ,--.
+     | |  |       |        :   |
+     | |  `|`'`-._|        :   |
+     | |   | |             :   |
+     | |   | |             :   |
+     | |   | |  .-------.  :   |
+     | |   | | ,|   _O  |  :   |
+     | |   | | ||_,'    |  :   |
+     | |   | | `|       |  ;...:fsr
+     | |   | |  |       | /.--. \
+     | |  |` |  |       | |'--' |
+     '-'  `--'  '-------' '-----' 
+
+
+
 To get this to work you need to configure mysql and the python mysql bindings manually. But most of if not all of the python libaries needed can be accessed using the command:
 
 source ./venv/bin/activate
