@@ -65,13 +65,13 @@ class OutForm(forms.Form):
     input_db = forms.ChoiceField(required=False)
     output_db = forms.CharField(initial="temp_db", max_length=25)
     drop_output_selector = forms.BooleanField(required=False,label="Drop db if already exists?")
-
     filter_selector = forms.ChoiceField(choices=filters,initial=filters[0][0])
-    
     date_from = forms.DateField(required=False)
     date_to = forms.DateField(required=False)
 
     device_type = forms.CharField(initial="infusion pump",)
+    t = "Use Contains for device type?"
+    device_contains = forms.BooleanField(required=False, label=t)
 
     manufacturer_name = forms.CharField(required=False)
     event_type = forms.ChoiceField(choices=event_type_enums, required=False)
@@ -111,7 +111,6 @@ class RawForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super(RawForm, self).__init__(*args, **kwargs)
-        from IPython import embed
         self.fields['select_body'].widget = forms.Textarea()
 
 

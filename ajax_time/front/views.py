@@ -106,21 +106,45 @@ def out_form(request):
 
         from sqlalchemy.orm import subqueryload, joinedload
         from sqlalchemy.orm.session import make_transient
-        embed()
-        """
+
+        #embed()
         #the_q = session.query(device).from_statement(sel).options(joinedload(device.master_records))
+        """
         the_q = session.query(device).\
                 filter_by(generic_name=form.cleaned_data["device_type"]).\
                 outerjoin(device_problem, device.problems).limit(100).\
                 options(joinedload(device.problems), joinedload(device.problems.problem_code))
+        """
         import time
         start = time.time()
-        base_q = session.query(device).filter_by(generic_name="infusion pump").\
-                limit(1000).\
-                options(joinedload(device.problems), joinedload(device.master_record))
+        filt = form.data.getlist("filter_selector")
+        base_q = session.query(device)
+        m_r_join = False
+        if "device_type" in filt:
+            if form.cleaned_data["device_contains"]:
+                base_q = base_q.filter(device.generic_name.contains(form.cleaned_data["device_type"]))
+            else:
+                base_q = base_q.filter_by(generic_name=form.cleaned_data["device_type"])
+        if "date" in filt:
+            d_from = form.cleaned_data["date_from"]
+            d_to = form.cleaned_data["date_to"]
+            base_q = base_q.join("master_record").\
+                    filter(master_record.date_report.between(d_from, d_to))
+            m_r_join = True
+        if "manufacturer" in filt:
+            m_n = form.cleaned_data["manufacturer_name"]
+            base_q = base_q.filter(device.manufacturer_name.contains(m_n))
+        if "event_type" in filt:
+            e_t = form.cleaned_data["event_type"]
+            if m_r_join:
+                base_q = base_q.filter(master_record.event_type==e_t)
+            else:
+                base_q = base_q.join("master_record").\
+                        filter(master_record.event_type==e_t)
+        base_q = base_q.options(joinedload(device.problems), joinedload(device.master_record))
 
         ret_o = base_q.all()
-        """
+
         li_to_commit = ret_o
         for i in ret_o:
 
@@ -151,7 +175,10 @@ def out_form(request):
         ret_prox = dbdb_session.query(Db).all()
         dbli = [i.name for i in ret_prox]
         if db_name in dbli:
-            #engine1.execute("drop database " + db_name)
+            if form.cleaned_data["drop_output_selector"]:
+                engine1.execute("drop database " + db_name)
+                engine1.execute("create database " + db_name)
+
             i = dbli.index(db_name)
             db_entry = ret_prox[i]
             db_entry.date_created = datetime.now()
@@ -159,8 +186,8 @@ def out_form(request):
         else:
             db_entry = Db(name=db_name, date_created=datetime.now())
             dbdb_session.add(db_entry)
+            engine1.execute("create database " + db_name)
 
-        #engine1.execute("create database " + db_name)
         dbdb_session.commit()
 
         engine1b = create_engine('mysql://root@localhost:3306/' + db_name)
@@ -187,7 +214,6 @@ def out_form(request):
             elif insert.table.name in MDR_tables:
                 rems = "MDR_report_key = MDR_report_key"
             return s + " ON DUPLICATE KEY UPDATE " + rems
-
         nDBSesh.add_all(li_to_commit)
         nDBSesh.commit()
 

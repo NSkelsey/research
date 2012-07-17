@@ -184,7 +184,7 @@ patient.master_record = relationship(
         backref=backref(
             "patients", 
             uselist=True,
-            #lazy="joined",
+            lazy="joined",
             ),
         uselist=False
         )
@@ -236,7 +236,7 @@ problem_code.device_problems = relationship(
         backref=backref(
             "problem_code",
             uselist=False,
-            #lazy="joined",
+            lazy="joined",
             ),
         uselist=True,
         )
@@ -248,7 +248,7 @@ FOI_text.master_record = relationship("master_record",
             'text_records', 
             order_by=FOI_text.text_key,
             uselist=True,
-            #lazy="joined",
+            lazy="joined",
             )
         )
 
