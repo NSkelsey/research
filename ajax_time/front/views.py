@@ -18,6 +18,7 @@ from forms import (
         OutForm,
         RawForm,
         SelectForm,
+        DBForm,
         )
 from sqlalchemy.sql import select, bindparam, and_
 from sqlalchemy import func, create_engine
@@ -88,18 +89,18 @@ def make_select_cols(type_name, fields_list):
 def out_form(request):
     if request.method== "POST":
         form = OutForm(request.POST)
+        db_form = DBForm(request.POST)
         s = make_dbdb_session()
         ret_prox = s.query(Db).all()
         dbs = [(i.name, i.name) for i in ret_prox]
         s.close()
-        form.fields['input_db'].choices = dbs
+        db_form.fields['input_db'].choices = dbs
         form.full_clean()
-        ff = form.fields["input_db"]
-        ff.validate(form.data["input_db"])
+        db_form.full_clean()
 
 
 
-        input_db_name = form.cleaned_data["input_db"]
+        input_db_name = db_form.cleaned_data["input_db"]
         if not verify_db_name(input_db_name):
             return HttpResponse("need a real dbname")
         session = make_input_db_session(input_db_name, echo=True)
@@ -141,7 +142,8 @@ def out_form(request):
             else:
                 base_q = base_q.join("master_record").\
                         filter(master_record.event_type==e_t)
-        base_q = base_q.options(joinedload(device.problems), joinedload(device.master_record))
+        base_q = base_q.limit(10000).\
+                        options(joinedload(device.problems), joinedload(device.master_record))
 
         ret_o = base_q.all()
 
@@ -163,7 +165,7 @@ def out_form(request):
             span_left_from_dev(i.master_record)
             make_transient(i)
         session.close()
-        db_name = form.cleaned_data["output_db"]
+        db_name = db_form.cleaned_data["output_db"]
         engine1 = create_engine("mysql://root@localhost:3306/mysql")
         if db_name in db_deny_set:
             return HttpResponse("You can't play with that db")
@@ -175,7 +177,7 @@ def out_form(request):
         ret_prox = dbdb_session.query(Db).all()
         dbli = [i.name for i in ret_prox]
         if db_name in dbli:
-            if form.cleaned_data["drop_output_selector"]:
+            if db_form.cleaned_data["drop_output_selector"]:
                 engine1.execute("drop database " + db_name)
                 engine1.execute("create database " + db_name)
 
@@ -235,6 +237,7 @@ def out_form(request):
 
 def simple_form(request):
     form = OutForm()
+    db_form  = DBForm()
     if request.method == "POST":
         return HttpResponse(o)
 
@@ -242,9 +245,9 @@ def simple_form(request):
     s = make_dbdb_session()
     ret_prox = s.query(Db).all()
     dbs = [(i.name, i.name) for i in ret_prox]
-    form.fields['input_db'].choices = dbs
+    db_form.fields['input_db'].choices = dbs
     return render_to_response('simple_f.html',
-            {'outform': form,},
+            {'outform': form,"db_form" : db_form},
             context_instance=RequestContext(request))
 
 

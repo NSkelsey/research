@@ -60,11 +60,12 @@ tf =  "table_fields"
 
 event_type_enums =  [(e,e) for e in master_record.__table__.c.event_type.type.enums]
 
-class OutForm(forms.Form):
-
+class DBForm(forms.Form):
     input_db = forms.ChoiceField(required=False)
     output_db = forms.CharField(initial="temp_db", max_length=25)
     drop_output_selector = forms.BooleanField(required=False,label="Drop db if already exists?")
+    
+class OutForm(forms.Form):
     filter_selector = forms.ChoiceField(choices=filters,initial=filters[0][0])
     date_from = forms.DateField(required=False)
     date_to = forms.DateField(required=False)

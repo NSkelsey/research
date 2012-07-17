@@ -1,8 +1,15 @@
 To get this to work you need to configure mysql and the python mysql bindings manually. But most of if not all of the python libaries needed can be accessed using the command:
 
-source venv/bin/activate
+source ./venv/bin/activate
 
-which will initialize a virtual python environment. This project also assumes python2.7
+that command will initialize a virtual python environment which has the nessecary libraries. This project also assumes python2.7
 
-To run the server just start it with
+A dummy db of ~10,000 records in each table is included use mysql -uroot [dbname] < pans_db.txt to get into mysql
+Its worth noting that alot of the python depends on an account for mysql which has uname:root and no password. I suppose we could change this.
+
+To run the server just start it with:
 python manage.py runserver
+
+ django, mysql and sqlalchemy will all have to be working for that to work
+
+if you can't get it working just ask me
