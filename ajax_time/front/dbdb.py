@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
-engine = create_engine('mysql://dba@localhost:3306/db_db',echo=True)
+engine = create_engine('mysql://dba@localhost:3306/db_db',echo=False)
 Session = sessionmaker(autoflush=True, bind=engine)
 
 class Db(Base):

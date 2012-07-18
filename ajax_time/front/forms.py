@@ -2,6 +2,7 @@ from django import forms
 from table_mapping import *
 import datetime
 from dbdb import Db, Session, make_dbdb_session
+from IPython import embed
 
 class SimpleForm(forms.Form):
     obj = forms.ChoiceField(choices=[
@@ -60,13 +61,19 @@ tf =  "table_fields"
 
 event_type_enums =  [(e,e) for e in master_record.__table__.c.event_type.type.enums]
 
+logical_ops = [
+        ("none", "None (use for last filter)"),
+        ("and", "and"),
+        ("or", "or"),
+        ]
+
 class DBForm(forms.Form):
     input_db = forms.ChoiceField(required=False)
     output_db = forms.CharField(initial="temp_db", max_length=25)
     drop_output_selector = forms.BooleanField(required=False,label="Drop db if already exists?")
     
 class OutForm(forms.Form):
-    filter_selector = forms.ChoiceField(choices=filters,initial=filters[0][0])
+    filter_selector = forms.ChoiceField(choices=filters,initial="device_type")
     date_from = forms.DateField(required=False)
     date_to = forms.DateField(required=False)
 
@@ -76,7 +83,13 @@ class OutForm(forms.Form):
 
     manufacturer_name = forms.CharField(required=False)
     event_type = forms.ChoiceField(choices=event_type_enums, required=False)
-
+    logical_operation = forms.ChoiceField(choices=logical_ops,
+            label="Logical operation for next filter block",
+            widget=forms.Select(attrs={'onchange': "duplicate_table()"}),
+            )
+    not_op = forms.BooleanField(required=False,
+            label="Check to not",
+            )
 
 
    

@@ -41,7 +41,11 @@
         });
      var t_count = 0;
      function duplicate_table() {
+       $("tbody").each(function(i, domEle){
+           $(this).closest("table").find("tr #id_logical_operation").attr("onchange", "");
+           });
        var and = $("#id_filter_selector").closest("table").clone()
+       and.find("tr #id_logical_operation").attr("onchange", "duplicate_table()");
        and.attr("id", "clone").appendTo($("#out_form"));
      }
 
@@ -54,9 +58,9 @@
   {{ db_form }}
   <table id=out_table>
      {% for field in outform %}
-    {% if field.name == "filter_selector" %}
+    {% if field.name == "logical_operation" %}
     <tr id=id_{{ field.name }}>
-      <th> {{ field.label_tag }}  </th> <td> {{ field }} </td> <td> <a onclick="duplicate_table()" id={{ field.name }}_add >AND</a></td>
+      <th> {{ field.label_tag }}  </th> <td> {{ field }} </td> <td></td>
     </tr>
     {% else %}
     <tr id=id_{{ field.name }}>

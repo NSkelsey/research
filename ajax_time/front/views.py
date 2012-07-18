@@ -3,6 +3,7 @@ from django.template import RequestContext
 from django.http import HttpResponse
 from django.core.context_processors import request as r
 import sqlalchemy
+from sqlalchemy import and_, or_, not_
 from table_mapping import (
         FOI_text,
         Base,
@@ -20,13 +21,15 @@ from forms import (
         SelectForm,
         DBForm,
         )
-from sqlalchemy.sql import select, bindparam, and_
+from sqlalchemy.sql import select, bindparam
 from sqlalchemy import func, create_engine
 
 from usefulfunctions import make_input_db_session
 from dbdb import verify_db_name, make_dbdb_session, Db
 from datetime import datetime
 from IPython import embed
+
+ECHO = True
 
 
 db_deny_set = set([
@@ -94,6 +97,7 @@ def out_form(request):
         ret_prox = s.query(Db).all()
         dbs = [(i.name, i.name) for i in ret_prox]
         s.close()
+        del ret_prox
         db_form.fields['input_db'].choices = dbs
         form.full_clean()
         db_form.full_clean()
@@ -103,12 +107,11 @@ def out_form(request):
         input_db_name = db_form.cleaned_data["input_db"]
         if not verify_db_name(input_db_name):
             return HttpResponse("need a real dbname")
-        session = make_input_db_session(input_db_name, echo=True)
+        session = make_input_db_session(input_db_name, echo=ECHO)
 
         from sqlalchemy.orm import subqueryload, joinedload
         from sqlalchemy.orm.session import make_transient
 
-        #embed()
         #the_q = session.query(device).from_statement(sel).options(joinedload(device.master_records))
         """
         the_q = session.query(device).\
@@ -118,9 +121,77 @@ def out_form(request):
         """
         import time
         start = time.time()
-        filt = form.data.getlist("filter_selector")
-        base_q = session.query(device)
+        base_q = session.query(device).join("master_record")
         m_r_join = False
+
+        num_filters = len(form.data.getlist("filter_selector"))
+        filter_dict_li = []
+        for i in range(num_filters):
+            filter_dict = {}
+            keylist = form.data.keys()
+            for key in keylist:
+                input_li = form.data.getlist(key)
+                if len(input_li) < num_filters:
+                    continue  # I credit this line to pan
+                filter_dict[key] = input_li[i]
+            filter_dict_li.append(filter_dict)
+        filt_sels = [i["filter_selector"] for i in filter_dict_li]
+        filt_ops = [i["logical_operation"] for i in filter_dict_li]
+
+        def make_expression(filter_sels, filter_dict_li, pos):
+            filter_dict = filter_dict_li[pos]
+            filter_sel = filter_sels[pos]
+            if filter_sel == "device_type":
+                d_t = filter_dict["device_type"]
+                if filter_dict.get("device_contains"):
+                    ret = device.generic_name.contains(d_t)
+                else:
+                    ret = device.generic_name==d_t
+            if filter_sel == "date":
+                date_to = form.fields["date_to"].to_python(filter_dict["date_to"])
+                date_from = form.fields["date_from"].to_python(filter_dict["date_from"])
+                ret = master_record.date_report.between(date_from, date_to)
+            if filter_sel == "manufacturer":
+                man_name = filter_dict["manufacturer_name"]
+                ret = device.manufacturer_name.contains(man_name)
+            if filter_sel == "event_type":
+                e_t = filter_dict["event_type"]
+                ret = master_record.event_type==e_t
+
+            if filter_dict.get("not_op"):
+                ret = not_(ret)
+            return ret
+
+
+        and_flag = False
+        and_buffer = []
+        or_buffer = []
+        for i in range(num_filters):
+            ex = make_expression(filt_sels, filter_dict_li, pos=i)
+            if filt_ops[i] == "and":
+                and_flag = True
+                and_buffer.append(ex)
+            elif filt_ops[i] == "or":
+                if and_flag == True:
+                    and_buffer.append(ex)
+                    ex = and_(*and_buffer)
+                    and_buffer = []
+                    and_flag = False
+                    or_buffer.append(ex)
+                else:
+                    or_buffer.append(ex)
+            else:
+                if and_flag == True:
+                    and_buffer.append(ex)
+                    ex = and_(*and_buffer)
+                or_buffer.append(ex)
+        expression = or_(*or_buffer)
+
+        base_q = base_q.filter(expression)
+
+
+
+        """
         if "device_type" in filt:
             if form.cleaned_data["device_contains"]:
                 base_q = base_q.filter(device.generic_name.contains(form.cleaned_data["device_type"]))
@@ -142,9 +213,9 @@ def out_form(request):
             else:
                 base_q = base_q.join("master_record").\
                         filter(master_record.event_type==e_t)
+        """
         base_q = base_q.limit(10000).\
                         options(joinedload(device.problems), joinedload(device.master_record))
-
         ret_o = base_q.all()
 
         li_to_commit = ret_o
@@ -195,7 +266,7 @@ def out_form(request):
         engine1b = create_engine('mysql://root@localhost:3306/' + db_name)
         Base.metadata.create_all(bind=engine1b)
 
-        engine2 = create_engine('mysql://root@localhost:3306/' + db_name, echo=True)
+        engine2 = create_engine('mysql://root@localhost:3306/' + db_name, echo=ECHO)
         nDBSesh = sqlalchemy.orm.sessionmaker(bind=engine2)()
 
         from sqlalchemy.ext.compiler import compiles
