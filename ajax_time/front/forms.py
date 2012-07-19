@@ -72,12 +72,18 @@ class DBForm(forms.Form):
     output_db = forms.CharField(initial="temp_db", max_length=25)
     drop_output_selector = forms.BooleanField(required=False,label="Drop db if already exists?")
     
+
+
 class OutForm(forms.Form):
-    filter_selector = forms.ChoiceField(choices=filters,initial="device_type")
+    filter_selector = forms.ChoiceField(choices=filters,initial="device_type",
+                                        widget=forms.Select(attrs={'onchange' : "changeFilter()"}),
+                                        required=False,
+                                        )
     date_from = forms.DateField(required=False)
     date_to = forms.DateField(required=False)
 
-    device_type = forms.CharField(initial="infusion pump",)
+    device_type = forms.CharField(initial="infusion pump",
+                            required=False,)
     t = "Use Contains for device type?"
     device_contains = forms.BooleanField(required=False, label=t)
 
@@ -85,11 +91,23 @@ class OutForm(forms.Form):
     event_type = forms.ChoiceField(choices=event_type_enums, required=False)
     logical_operation = forms.ChoiceField(choices=logical_ops,
             label="Logical operation for next filter block",
-            widget=forms.Select(attrs={'onchange': "duplicate_table()"}),
+            widget=forms.Select(attrs={'onchange': "duplicate_table()", "class" : "notfilter"}),
+            required=False,
             )
     not_op = forms.BooleanField(required=False,
             label="Check to not",
             )
+
+    def __init__(self, *args, **kwargs):
+        super(forms.Form, self).__init__(*args, **kwargs)
+        self.fields['date_from'].widget.attrs['class'] = "date"
+        self.fields['date_to'].widget.attrs['class'] = "date"
+        self.fields['device_type'].widget.attrs['class'] = "device_type"
+        self.fields['device_contains'].widget.attrs['class'] = "device_type"
+        self.fields['manufacturer_name'].widget.attrs['class'] = "manufacturer"
+        self.fields['event_type'].widget.attrs['class'] = "event_type"
+        self.fields['logical_operation'].widget.attrs['class'] = "notfilter"
+        self.fields['not_op'].widget.attrs['class'] = "notfilter"
 
 
    

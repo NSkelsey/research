@@ -2,6 +2,7 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.http import HttpResponse
 from django.core.context_processors import request as r
+from django.forms.formsets import formset_factory
 import sqlalchemy
 from sqlalchemy import and_, or_, not_
 from table_mapping import (
@@ -39,6 +40,7 @@ db_deny_set = set([
     "performance_schema",
     "fda_data",
     "test_bed",
+    "nothankyou"
     ])
 
 def raw_req(request):
@@ -91,7 +93,10 @@ def make_select_cols(type_name, fields_list):
 
 def out_form(request):
     if request.method== "POST":
-        form = OutForm(request.POST)
+        OutFormSet = formset_factory(OutForm)
+        outformset = OutFormSet(request.POST)
+        if not outformset.is_valid():
+            HttpResponse("formset is not valid")
         db_form = DBForm(request.POST)
         s = make_dbdb_session()
         ret_prox = s.query(Db).all()
@@ -99,7 +104,6 @@ def out_form(request):
         s.close()
         del ret_prox
         db_form.fields['input_db'].choices = dbs
-        form.full_clean()
         db_form.full_clean()
 
 
@@ -112,35 +116,16 @@ def out_form(request):
         from sqlalchemy.orm import subqueryload, joinedload
         from sqlalchemy.orm.session import make_transient
 
-        #the_q = session.query(device).from_statement(sel).options(joinedload(device.master_records))
-        """
-        the_q = session.query(device).\
-                filter_by(generic_name=form.cleaned_data["device_type"]).\
-                outerjoin(device_problem, device.problems).limit(100).\
-                options(joinedload(device.problems), joinedload(device.problems.problem_code))
-        """
         import time
         start = time.time()
         base_q = session.query(device).join("master_record")
         m_r_join = False
 
-        num_filters = len(form.data.getlist("filter_selector"))
-        filter_dict_li = []
-        for i in range(num_filters):
-            filter_dict = {}
-            keylist = form.data.keys()
-            for key in keylist:
-                input_li = form.data.getlist(key)
-                if len(input_li) < num_filters:
-                    continue  # I credit this line to pan
-                filter_dict[key] = input_li[i]
-            filter_dict_li.append(filter_dict)
-        filt_sels = [i["filter_selector"] for i in filter_dict_li]
-        filt_ops = [i["logical_operation"] for i in filter_dict_li]
+        num_filters = len(outformset.forms)
+        filter_dict_li = [i.cleaned_data for i in outformset.forms]
 
-        def make_expression(filter_sels, filter_dict_li, pos):
-            filter_dict = filter_dict_li[pos]
-            filter_sel = filter_sels[pos]
+        def make_expression(filter_dict):
+            filter_sel = filter_dict["filter_selector"]
             if filter_sel == "device_type":
                 d_t = filter_dict["device_type"]
                 if filter_dict.get("device_contains"):
@@ -148,8 +133,8 @@ def out_form(request):
                 else:
                     ret = device.generic_name==d_t
             if filter_sel == "date":
-                date_to = form.fields["date_to"].to_python(filter_dict["date_to"])
-                date_from = form.fields["date_from"].to_python(filter_dict["date_from"])
+                date_to = filter_dict["date_to"]
+                date_from = filter_dict["date_from"]
                 ret = master_record.date_report.between(date_from, date_to)
             if filter_sel == "manufacturer":
                 man_name = filter_dict["manufacturer_name"]
@@ -158,16 +143,16 @@ def out_form(request):
                 e_t = filter_dict["event_type"]
                 ret = master_record.event_type==e_t
 
-            if filter_dict.get("not_op"):
+            if filter_dict["not_op"]:
                 ret = not_(ret)
             return ret
-
 
         and_flag = False
         and_buffer = []
         or_buffer = []
+        filt_ops = [i["logical_operation"] for i in filter_dict_li]
         for i in range(num_filters):
-            ex = make_expression(filt_sels, filter_dict_li, pos=i)
+            ex = make_expression(filter_dict_li[i])
             if filt_ops[i] == "and":
                 and_flag = True
                 and_buffer.append(ex)
@@ -188,32 +173,6 @@ def out_form(request):
         expression = or_(*or_buffer)
 
         base_q = base_q.filter(expression)
-
-
-
-        """
-        if "device_type" in filt:
-            if form.cleaned_data["device_contains"]:
-                base_q = base_q.filter(device.generic_name.contains(form.cleaned_data["device_type"]))
-            else:
-                base_q = base_q.filter_by(generic_name=form.cleaned_data["device_type"])
-        if "date" in filt:
-            d_from = form.cleaned_data["date_from"]
-            d_to = form.cleaned_data["date_to"]
-            base_q = base_q.join("master_record").\
-                    filter(master_record.date_report.between(d_from, d_to))
-            m_r_join = True
-        if "manufacturer" in filt:
-            m_n = form.cleaned_data["manufacturer_name"]
-            base_q = base_q.filter(device.manufacturer_name.contains(m_n))
-        if "event_type" in filt:
-            e_t = form.cleaned_data["event_type"]
-            if m_r_join:
-                base_q = base_q.filter(master_record.event_type==e_t)
-            else:
-                base_q = base_q.join("master_record").\
-                        filter(master_record.event_type==e_t)
-        """
         base_q = base_q.limit(10000).\
                         options(joinedload(device.problems), joinedload(device.master_record))
         ret_o = base_q.all()
@@ -299,14 +258,16 @@ def out_form(request):
 
         stop = time.time()
         dif = stop - start
-        return HttpResponse("inserted this many records into new db: " + str(len(ret_o)) + "<br>"  + str(dif)+ "<br>")
+        return HttpResponse("inserted this many records into new db: " + str(len(ret_o)) + "<br>"  + str(dif)+ "<br><br>" +
+                "====The expression made looked like this==== <br>" + str(expression) + "")
 
     else:
         return HttpResponse("You gotta post")
 
 
-
 def simple_form(request):
+    OFset = formset_factory(OutForm,)
+    ofset = OFset()
     form = OutForm()
     db_form  = DBForm()
     if request.method == "POST":
@@ -318,7 +279,7 @@ def simple_form(request):
     dbs = [(i.name, i.name) for i in ret_prox]
     db_form.fields['input_db'].choices = dbs
     return render_to_response('simple_f.html',
-            {'outform': form,"db_form" : db_form},
+            {'ofset': ofset, "db_form" : db_form},
             context_instance=RequestContext(request))
 
 
