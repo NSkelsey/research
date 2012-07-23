@@ -15,6 +15,7 @@ urlpatterns = patterns('',
     url(r'^gdft_xhr$', views.gdft_xhr),
     url(r'out_form', views.out_form),
     url(r'jsfun', views.hit_js),
+    url(r'dbs', views.present_dbs),
     # url(r'^ajax_time/', include('ajax_time.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:

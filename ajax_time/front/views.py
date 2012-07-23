@@ -1,18 +1,31 @@
+import time
+from datetime import datetime
+
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.http import HttpResponse
-from django.core.context_processors import request as r
 from django.forms.formsets import formset_factory
-import sqlalchemy
-from sqlalchemy import and_, or_, not_
-from table_mapping import (
-        FOI_text,
-        Base,
-        device_problem,
-        device,
-        master_record,
-        problem_code,
-        patient,
+from sqlalchemy.orm import subqueryload, joinedload, sessionmaker
+from sqlalchemy.orm.session import make_transient
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import Insert
+from sqlalchemy import (
+        and_,
+        or_,
+        not_,
+        func,
+        create_engine,
+        )
+from sqlalchemy.sql import select, bindparam
+from IPython import embed
+
+from dbdb import (
+        verify_db_name,
+        make_dbdb_session,
+        Db,
+        Db_relation,
+        db_deny_set,
+        Filter,
         )
 from forms import (
         SimpleForm,
@@ -22,26 +35,19 @@ from forms import (
         SelectForm,
         DBForm,
         )
-from sqlalchemy.sql import select, bindparam
-from sqlalchemy import func, create_engine
-
-from usefulfunctions import make_input_db_session
-from dbdb import verify_db_name, make_dbdb_session, Db
-from datetime import datetime
-from IPython import embed
+from table_mapping import (
+        FOI_text,
+        Base,
+        device_problem,
+        device,
+        master_record,
+        problem_code,
+        patient,
+        )
+from usefulfunctions import make_input_db_session, make_expression
 
 ECHO = True
 
-
-db_deny_set = set([
-    "information_schema",
-    "fda_data",
-    "mysql",
-    "performance_schema",
-    "fda_data",
-    "test_bed",
-    "nothankyou"
-    ])
 
 def raw_req(request):
     if request.method == "POST":
@@ -113,10 +119,6 @@ def out_form(request):
             return HttpResponse("need a real dbname")
         session = make_input_db_session(input_db_name, echo=ECHO)
 
-        from sqlalchemy.orm import subqueryload, joinedload
-        from sqlalchemy.orm.session import make_transient
-
-        import time
         start = time.time()
         base_q = session.query(device).join("master_record")
         m_r_join = False
@@ -124,28 +126,6 @@ def out_form(request):
         num_filters = len(outformset.forms)
         filter_dict_li = [i.cleaned_data for i in outformset.forms]
 
-        def make_expression(filter_dict):
-            filter_sel = filter_dict["filter_selector"]
-            if filter_sel == "device_type":
-                d_t = filter_dict["device_type"]
-                if filter_dict.get("device_contains"):
-                    ret = device.generic_name.contains(d_t)
-                else:
-                    ret = device.generic_name==d_t
-            if filter_sel == "date":
-                date_to = filter_dict["date_to"]
-                date_from = filter_dict["date_from"]
-                ret = master_record.date_report.between(date_from, date_to)
-            if filter_sel == "manufacturer":
-                man_name = filter_dict["manufacturer_name"]
-                ret = device.manufacturer_name.contains(man_name)
-            if filter_sel == "event_type":
-                e_t = filter_dict["event_type"]
-                ret = master_record.event_type==e_t
-
-            if filter_dict["not_op"]:
-                ret = not_(ret)
-            return ret
 
         and_flag = False
         and_buffer = []
@@ -171,9 +151,10 @@ def out_form(request):
                     ex = and_(*and_buffer)
                 or_buffer.append(ex)
         expression = or_(*or_buffer)
+        filter_to_commit = Filter(expression=expression, name=db_form.cleaned_data["filter_name"])
 
         base_q = base_q.filter(expression)
-        base_q = base_q.limit(10000).\
+        base_q = base_q.limit(10).\
                         options(joinedload(device.problems), joinedload(device.master_record))
         ret_o = base_q.all()
 
@@ -214,22 +195,24 @@ def out_form(request):
             i = dbli.index(db_name)
             db_entry = ret_prox[i]
             db_entry.date_created = datetime.now()
-            dbdb_session.add(db_entry)
+            rel = Db_relation(child_db_name=db_name,parent_db_name=input_db_name)
         else:
             db_entry = Db(name=db_name, date_created=datetime.now())
-            dbdb_session.add(db_entry)
+            rel = Db_relation(parent_db_name=input_db_name, child_db_name=db_name)
             engine1.execute("create database " + db_name)
-
+        dbdb_session.add(filter_to_commit)
+        dbdb_session.commit()
+        rel._filter = filter_to_commit
+        db_entry.child_relations.append(rel)
+        dbdb_session.add(db_entry)
         dbdb_session.commit()
 
         engine1b = create_engine('mysql://root@localhost:3306/' + db_name)
         Base.metadata.create_all(bind=engine1b)
 
         engine2 = create_engine('mysql://root@localhost:3306/' + db_name, echo=ECHO)
-        nDBSesh = sqlalchemy.orm.sessionmaker(bind=engine2)()
-
-        from sqlalchemy.ext.compiler import compiles
-        from sqlalchemy.sql.expression import Insert
+        nDBSesh = sessionmaker(bind=engine2)()
+        #adds on duplicate key... to the mass inserts for the newly created db
         @compiles(Insert)
         def add_string(insert, compiler, **kw):
             s = compiler.visit_insert(insert, **kw)
@@ -248,13 +231,11 @@ def out_form(request):
             return s + " ON DUPLICATE KEY UPDATE " + rems
         nDBSesh.add_all(li_to_commit)
         nDBSesh.commit()
-
+        #redefining add_string prevents insert dying on other things
         @compiles(Insert)
         def add_string(insert, compiler, **kw):
             s = compiler.visit_insert(insert, **kw)
             return s
-
-
 
         stop = time.time()
         dif = stop - start
@@ -363,3 +344,23 @@ def select_builder(request):
         return render_to_response("select_form.html",
                 {'form': form},
                 context_instance=RequestContext(request))
+
+
+def present_dbs(request):
+    session = make_dbdb_session()
+
+    topdb =  session.query(Db).filter_by(name="orm_fun").first()
+    def recurse_dbs(topdb):
+        cli = topdb.children
+        li = [topdb.name]
+        for i in cli:
+            li.append(recurse_dbs(i))
+        return li
+
+    db_tree = recurse_dbs(topdb)
+    return render_to_response("db_structure.html",
+            {"db_tree" : db_tree},
+            context_instance=RequestContext(request),
+            )
+
+

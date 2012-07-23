@@ -71,6 +71,8 @@ class DBForm(forms.Form):
     input_db = forms.ChoiceField(required=False)
     output_db = forms.CharField(initial="temp_db", max_length=25)
     drop_output_selector = forms.BooleanField(required=False,label="Drop db if already exists?")
+    filter_name = forms.CharField(initial="test", max_length=100)
+    
     
 
 
