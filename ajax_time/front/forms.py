@@ -1,7 +1,7 @@
 from django import forms
 from table_mapping import *
 import datetime
-from dbdb import Db, Session, make_dbdb_session
+from dbdb import Db, Session, make_dbdb_session, Filter
 from IPython import embed
 
 class SimpleForm(forms.Form):
@@ -72,11 +72,16 @@ class DBForm(forms.Form):
     output_db = forms.CharField(initial="temp_db", max_length=25)
     drop_output_selector = forms.BooleanField(required=False,label="Drop db if already exists?")
     filter_name = forms.CharField(initial="test", max_length=100)
-    
-    
 
 
+class FilterForm(forms.Form):
+    name = forms.CharField(max_length=100)
+    comment = forms.CharField(widget=forms.widgets.Textarea(), required=False)
+    
+    def __init__(self, *args, **kwargs):
+        super(forms.Form, self).__init__(*args, **kwargs)
 class OutForm(forms.Form):
+    filter_choice = forms.ChoiceField(required=False, label="Use filter:")
     filter_selector = forms.ChoiceField(choices=filters,initial="device_type",
                                         widget=forms.Select(attrs={'onchange' : "changeFilter()"}),
                                         required=False,
@@ -110,6 +115,14 @@ class OutForm(forms.Form):
         self.fields['event_type'].widget.attrs['class'] = "event_type"
         self.fields['logical_operation'].widget.attrs['class'] = "notfilter"
         self.fields['not_op'].widget.attrs['class'] = "notfilter"
+        s = make_dbdb_session()
+        f_li =  [(i.name,i.name) for i in s.query(Filter).all()]
+        f_li.append(("new_form", "New generic form"))
+        f_li = f_li[::-1]
+        self.fields["filter_choice"].choices = f_li
+        self.fields['filter_choice'].widget.attrs['class'] = "filter_choice"
+        s.close()
+
 
 
    

@@ -1,17 +1,22 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, DateTime, create_engine, String, PickleType, Integer, BLOB, ForeignKey
+from sqlalchemy import (
+        Column, DateTime, create_engine,
+        String, PickleType, Integer, Date, 
+        BLOB, ForeignKey, Boolean,
+        Enum, Text
+        )
 from sqlalchemy.dialects.mysql import TEXT, VARCHAR
 from sqlalchemy.orm import sessionmaker, relationship, backref
 from sqlalchemy.ext.serializer import loads, dumps
 from sqlalchemy import orm
- 
 Base = declarative_base()
 
-engine = create_engine('mysql://dba@localhost:3306/db_db',echo=True)
+engine = create_engine('mysql://dba@localhost:3306/db_db',echo=False)
 Session = sessionmaker(autoflush=True, bind=engine)
 
 from table_mapping import Base as t_m_Base
-
+from table_mapping import master_record
+import pickle
 
 
 db_deny_set = set([
@@ -42,7 +47,7 @@ class Db_relation(Base):
     __tablename__ = "db_relation_table"
     parent_db_name = Column(String(100), ForeignKey("db_table.name"), primary_key=True)
     child_db_name = Column(String(100), ForeignKey("db_table.name"), primary_key=True )
-    filter_id = Column(Integer, ForeignKey("vlasic.id"), primary_key=True, autoincrement=True)
+    filter_name = Column(String(30), ForeignKey("filter_table.name"), primary_key=True, autoincrement=True)
     _filter = relationship("Filter", backref="db_relation")
     parent  = relationship("Db", 
             primaryjoin="Db_relation.parent_db_name==Db.name",
@@ -54,24 +59,42 @@ class Db_relation(Base):
             )
 
 class Filter(Base):
-    __tablename__ = "vlasic"
+    __tablename__ = "filter_table"
 
-    id = Column(Integer, primary_key = True)
-    name = Column(String(30))
+    name = Column(String(30), primary_key=True)
+    comment = Column(Text)
     expr_blob = Column(BLOB)
 
     def __init__(self, expression=None, name=None):
         if expression is not None:
-            self.expr = expression
+            self.expression = expression
             blob = dumps(expression)
             self.expr_blob = blob
         self.name = name
 
     @orm.reconstructor
     def unpickle_pickle(self):
-        self.expr = loads(self.expr_blob, t_m_Base.metadata, Session)
+        self.expression = loads(self.expr_blob, t_m_Base.metadata, Session)
 
 
+
+class Filter_form(Base):
+    __tablename__ = "filter_form_table"
+
+    filter_name = Column(String(30), ForeignKey("filter_table.name"), primary_key=True)
+    pos = Column(Integer, primary_key=True, autoincrement=False)
+    form_blob = Column(BLOB)
+    _filter = relationship("Filter", backref=backref("forms", order_by="Filter_form.pos"))
+
+    def __init__(self, value_dict={}, pos=0):
+        self.value_dict = value_dict
+        self.pos = pos
+        blob = pickle.dumps(value_dict)
+        self.form_blob = blob
+
+    @orm.reconstructor
+    def unpickle_pickle(self):
+        self.value_dict = pickle.loads(self.form_blob)
 
 def verify_db_name(db_name):
     session = Session()

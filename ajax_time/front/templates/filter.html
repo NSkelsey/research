@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+
+
+
+{% block content %}
+
+<script src="/static/jquery-1.7.2.js"></script>
+<script src={{ STATIC_URL }}/filter.js type=text/javascript ></script>
+
+<form id="filter" method=post action="filter">
+  {{ ff }}
+{{ formset.management_form }}
+  {% for form in formset %}
+
+<div class=mytable >
+  <table >
+    {{ form.as_table }}
+   <p class=duplicate>Duplicate</p>
+   <p class=delete>Delete</p>
+   </table>
+ </div>
+   {% endfor %}
+
+   <input id="btn" type=submit value=Save >
+ </form>
+
+{% endblock %}

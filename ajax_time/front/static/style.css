@@ -46,4 +46,25 @@ a {
   padding-left: 20px;
 }
 
+.subf li {
+  margin: 0px;
+  margin-left: 15px;
+  font-size: 9pt;
+}
+
+div.mytable {
+    border-style: dotted;
+    border-color: gray;
+    border-width: 1px;
+    margin-bottom: 20px;
+
+}
+
+p.duplicate, p.delete {
+   border-width: 0px;
+   margin: 0px;
+   padding: 0px;
+   color: #08C;
+
+}
 

@@ -1,10 +1,11 @@
-from sqlalchemy import not_
+from sqlalchemy import not_, and_, or_
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from table_mapping import (
         master_record,
         device,
         )
+import dbdb
 
 
 def print_state(obj):
@@ -31,6 +32,11 @@ def make_input_db_session(input_db_name, echo=False):
 
 
 def make_expression(filter_dict):
+    if filter_dict["filter_choice"] != "new_form":
+        s = dbdb.make_dbdb_session()
+        f = s.query(dbdb.Filter).filter_by(name=filter_dict["filter_choice"]).scalar()
+        s.close()
+        return f.expression
     filter_sel = filter_dict["filter_selector"]
     if filter_sel == "device_type":
         d_t = filter_dict["device_type"]
@@ -52,3 +58,42 @@ def make_expression(filter_dict):
     if filter_dict["not_op"]:
         ret = not_(ret)
     return ret
+
+
+def make_filter_with_forms(filter_dict_li, filter_args={}):
+    num_filters = len(filter_dict_li)
+    and_flag = False
+    and_buffer = []
+    or_buffer = []
+    filt_ops = [i["logical_operation"] for i in filter_dict_li]
+    for i in range(num_filters):
+        ex = make_expression(filter_dict_li[i])
+        if filt_ops[i] == "and":
+            and_flag = True
+            and_buffer.append(ex)
+        elif filt_ops[i] == "or":
+            if and_flag == True:
+                and_buffer.append(ex)
+                ex = and_(*and_buffer)
+                and_buffer = []
+                and_flag = False
+                or_buffer.append(ex)
+            else:
+                or_buffer.append(ex)
+        else:
+            if and_flag == True:
+                and_buffer.append(ex)
+                ex = and_(*and_buffer)
+            or_buffer.append(ex)
+    expression = or_(*or_buffer)
+    ctr = 0
+    ff_li = []
+    for i in filter_dict_li:
+        f = dbdb.Filter_form(value_dict=i, pos=ctr)
+        ff_li.append(f)
+        ctr += 1
+    filter_to_commit = dbdb.Filter(expression=expression,
+            name=filter_args["name"])
+    filter_to_commit.forms = ff_li
+    return filter_to_commit
+

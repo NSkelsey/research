@@ -4,6 +4,7 @@ from datetime import datetime
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.http import HttpResponse
+from django.template.defaultfilters import escape
 from django.forms.formsets import formset_factory
 from sqlalchemy.orm import subqueryload, joinedload, sessionmaker
 from sqlalchemy.orm.session import make_transient
@@ -26,6 +27,7 @@ from dbdb import (
         Db_relation,
         db_deny_set,
         Filter,
+        Filter_form,
         )
 from forms import (
         SimpleForm,
@@ -34,6 +36,7 @@ from forms import (
         RawForm,
         SelectForm,
         DBForm,
+        FilterForm
         )
 from table_mapping import (
         FOI_text,
@@ -44,7 +47,7 @@ from table_mapping import (
         problem_code,
         patient,
         )
-from usefulfunctions import make_input_db_session, make_expression
+from usefulfunctions import make_input_db_session, make_filter_with_forms
 
 ECHO = True
 
@@ -111,9 +114,6 @@ def out_form(request):
         del ret_prox
         db_form.fields['input_db'].choices = dbs
         db_form.full_clean()
-
-
-
         input_db_name = db_form.cleaned_data["input_db"]
         if not verify_db_name(input_db_name):
             return HttpResponse("need a real dbname")
@@ -121,39 +121,13 @@ def out_form(request):
 
         start = time.time()
         base_q = session.query(device).join("master_record")
-        m_r_join = False
 
-        num_filters = len(outformset.forms)
         filter_dict_li = [i.cleaned_data for i in outformset.forms]
 
+        filter_to_commit = make_filter_with_forms(filter_dict_li,
+                {"name":db_form.cleaned_data["filter_name"]})
 
-        and_flag = False
-        and_buffer = []
-        or_buffer = []
-        filt_ops = [i["logical_operation"] for i in filter_dict_li]
-        for i in range(num_filters):
-            ex = make_expression(filter_dict_li[i])
-            if filt_ops[i] == "and":
-                and_flag = True
-                and_buffer.append(ex)
-            elif filt_ops[i] == "or":
-                if and_flag == True:
-                    and_buffer.append(ex)
-                    ex = and_(*and_buffer)
-                    and_buffer = []
-                    and_flag = False
-                    or_buffer.append(ex)
-                else:
-                    or_buffer.append(ex)
-            else:
-                if and_flag == True:
-                    and_buffer.append(ex)
-                    ex = and_(*and_buffer)
-                or_buffer.append(ex)
-        expression = or_(*or_buffer)
-        filter_to_commit = Filter(expression=expression, name=db_form.cleaned_data["filter_name"])
-
-        base_q = base_q.filter(expression)
+        base_q = base_q.filter(filter_to_commit.expression)
         base_q = base_q.limit(10).\
                         options(joinedload(device.problems), joinedload(device.master_record))
         ret_o = base_q.all()
@@ -195,15 +169,15 @@ def out_form(request):
             i = dbli.index(db_name)
             db_entry = ret_prox[i]
             db_entry.date_created = datetime.now()
-            rel = Db_relation(child_db_name=db_name,parent_db_name=input_db_name)
+            relation = Db_relation(child_db_name=db_name,parent_db_name=input_db_name)
         else:
             db_entry = Db(name=db_name, date_created=datetime.now())
-            rel = Db_relation(parent_db_name=input_db_name, child_db_name=db_name)
+            relation = Db_relation(parent_db_name=input_db_name, child_db_name=db_name)
             engine1.execute("create database " + db_name)
         dbdb_session.add(filter_to_commit)
         dbdb_session.commit()
-        rel._filter = filter_to_commit
-        db_entry.child_relations.append(rel)
+        relation._filter = filter_to_commit
+        db_entry.child_relations.append(relation)
         dbdb_session.add(db_entry)
         dbdb_session.commit()
 
@@ -240,7 +214,7 @@ def out_form(request):
         stop = time.time()
         dif = stop - start
         return HttpResponse("inserted this many records into new db: " + str(len(ret_o)) + "<br>"  + str(dif)+ "<br><br>" +
-                "====The expression made looked like this==== <br>" + str(expression) + "")
+                "====The expression made looked like this==== <br>" + str(filter_to_commit.expression) + "")
 
     else:
         return HttpResponse("You gotta post")
@@ -350,17 +324,78 @@ def present_dbs(request):
     session = make_dbdb_session()
 
     topdb =  session.query(Db).filter_by(name="orm_fun").first()
-    def recurse_dbs(topdb):
-        cli = topdb.children
-        li = [topdb.name]
-        for i in cli:
-            li.append(recurse_dbs(i))
-        return li
 
-    db_tree = recurse_dbs(topdb)
+    def display_filters(topdb):
+        ret = escape(topdb.name) + "<ul>"
+        if topdb.parent_relations:
+            ret += "<div class=subf>Filters:"
+        for i in topdb.parent_relations:
+            ret += "<li>" + escape(i._filter.name)
+            ret += "<a href=/filter/" + escape(i._filter.name) + ">link</a>"
+            ret += "<div style=\"margin-left: 10px; display: inline;\">" + "    " + escape(i.child_db_name) + "</div>"
+            ret += "</li>"
+        ret += "</div>"
+        return ret + "</ul>"
+
+    def recurse_dbs(topdb, li):
+        child_db_li = topdb.children
+        li.append(display_filters(topdb))
+        topdb.__setattr__("visited", True)
+        subli = []
+        for i in child_db_li:
+            try:
+                i.__getattribute__("visited")
+                return "bottom"
+            except (AttributeError):
+                recurse_dbs(i, subli)
+        if subli != []:
+            li.append(subli)
+        return li
+    
+
+
+    li = []
+    db_tree = recurse_dbs(topdb, li)
+    print db_tree
     return render_to_response("db_structure.html",
             {"db_tree" : db_tree},
             context_instance=RequestContext(request),
             )
+
+
+def show_filter(request, filter_name=None):
+    if request.method == "GET":
+        s = make_dbdb_session()
+        fil_to_show = s.query(Filter).filter_by(name=filter_name).scalar()
+        OFormSet = formset_factory(OutForm, extra=(len(fil_to_show.forms)-1))
+        formset = OFormSet(initial=[ i.value_dict for i in fil_to_show.forms])
+        ff = FilterForm()
+        return render_to_response("filter.html",
+                {"formset" : formset, "ff": ff},
+                context_instance=RequestContext(request),
+                )
+
+def save_filter(request, filter_name=None):
+    if request.method == "POST":
+        OutFormSet = formset_factory(OutForm)
+        outformset = OutFormSet(request.POST)
+        filterform = FilterForm(request.POST)
+
+        if not outformset.is_valid() or not filterform.is_valid():
+            return HttpResponse("invalid form")
+        filter_name=filterform.cleaned_data["filter_name"]
+        form_li = outformset.forms
+        dname = {"name" : filter_name}
+        _filter = make_filter_with_forms(form_li, dname)
+
+        s = make_dbdb_session()
+        s.query(Filter).filter_by(name=filter_name).scalar()
+
+
+
+        s.close()
+
+
+
 
 
