@@ -60,11 +60,24 @@ div.mytable {
 
 }
 
-p.duplicate, p.delete {
+a.duplicate, a.delete {
    border-width: 0px;
    margin: 0px;
-   padding: 0px;
+   padding-left: 5px;
    color: #08C;
+   display: inline;
 
 }
+a.delete {
+  padding-left: 20px;
+}
 
+a.duplicate:hover, a.delete:hover {
+  text-decoration:underline;
+}
+
+
+li.filter {
+
+  list-style-type: square;
+  }

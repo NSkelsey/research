@@ -234,7 +234,7 @@ def simple_form(request):
     dbs = [(i.name, i.name) for i in ret_prox]
     db_form.fields['input_db'].choices = dbs
     return render_to_response('simple_f.html',
-            {'ofset': ofset, "db_form" : db_form},
+            {'formset': ofset, "db_form" : db_form},
             context_instance=RequestContext(request))
 
 
@@ -330,7 +330,7 @@ def present_dbs(request):
         if topdb.parent_relations:
             ret += "<div class=subf>Filters:"
         for i in topdb.parent_relations:
-            ret += "<li>" + escape(i._filter.name)
+            ret += "<li class=filter >" + escape(i._filter.name)
             ret += "<a href=/filter/" + escape(i._filter.name) + ">link</a>"
             ret += "<div style=\"margin-left: 10px; display: inline;\">" + "    " + escape(i.child_db_name) + "</div>"
             ret += "</li>"
@@ -351,14 +351,24 @@ def present_dbs(request):
         if subli != []:
             li.append(subli)
         return li
-    
-
 
     li = []
     db_tree = recurse_dbs(topdb, li)
-    print db_tree
+    alldbs = session.query(Db).filter(Db.name != "orm_fun").all()
+    for db in alldbs:
+        if len(db.parents) == 0:
+            li = []
+            li = recurse_dbs(db, li)
+            if len(li) < 2:
+                db_tree.append(*li)
+            else: 
+                db_tree.append(li[0])
+                db_tree.append(li[1])
+
+    f_li = session.query(Filter).outerjoin("db_relation").filter(Db_relation.filter_name == None).all()
+    filters = f_li
     return render_to_response("db_structure.html",
-            {"db_tree" : db_tree},
+            {"db_tree" : db_tree, "filters" : filters},
             context_instance=RequestContext(request),
             )
 
@@ -367,11 +377,22 @@ def show_filter(request, filter_name=None):
     if request.method == "GET":
         s = make_dbdb_session()
         fil_to_show = s.query(Filter).filter_by(name=filter_name).scalar()
-        OFormSet = formset_factory(OutForm, extra=(len(fil_to_show.forms)-1))
+        _dict = {}
+        if fil_to_show is None:
+            fil_to_show = Filter(name=filter_name)
+            _dict["msg"] = "Save this filter to persist it"
+        if len(fil_to_show.forms) == 0:
+            OFormSet = formset_factory(OutForm, extra=1)
+            _dict["msg"] = "This filter was empty fill out the form to make an expression"
+        else:
+            OFormSet = formset_factory(OutForm, extra=0)
         formset = OFormSet(initial=[ i.value_dict for i in fil_to_show.forms])
-        ff = FilterForm()
-        return render_to_response("filter.html",
-                {"formset" : formset, "ff": ff},
+        ff = FilterForm(initial={"name": filter_name, "comment":fil_to_show.comment})
+        _dict["formset"] = formset
+        _dict["ff"] = ff
+
+        return render_to_response("just_filter.html",
+                _dict,
                 context_instance=RequestContext(request),
                 )
 
@@ -383,19 +404,42 @@ def save_filter(request, filter_name=None):
 
         if not outformset.is_valid() or not filterform.is_valid():
             return HttpResponse("invalid form")
-        filter_name=filterform.cleaned_data["filter_name"]
-        form_li = outformset.forms
+        filter_name=filterform.cleaned_data["name"]
+        form_li = [i.cleaned_data for i in outformset.forms]
+        if len(form_li) > 0:
+            form_li[-1]["logical_operation"] = "none"
         dname = {"name" : filter_name}
+        if filterform.cleaned_data.get("comment") is "":
+            dname["comment"] = filterform.cleaned_data["comment"]
         _filter = make_filter_with_forms(form_li, dname)
 
         s = make_dbdb_session()
-        s.query(Filter).filter_by(name=filter_name).scalar()
-
-
-
+        ret = s.query(Filter).filter_by(name=filter_name).scalar()
+        if ret is not None:
+            s.delete(ret)
+            s.commit()
+        s.add(_filter)
+        s.commit()
         s.close()
 
+        return HttpResponse("%(name)s has been saved<br>======it looks like======<br> %(expr)s" % {'name' : filter_name, 'expr': _filter.expression})
 
+
+def show_expression(request, filter_name):
+    s = make_dbdb_session()
+    ret = s.query(Filter).filter_by(name=filter_name).first()
+    expr = ret.expression
+    s.close()
+    return HttpResponse("%(name)s  expression looks like this<br> %(expression)s" % {'name' : filter_name, 'expression' : expr})
+
+def delete_filter(request, filter_name):
+    s = make_dbdb_session()
+    ret = s.query(Filter).filter_by(name=filter_name).scalar()
+    s.add(ret)
+    s.delete(ret)
+    s.commit()
+    s.close()
+    return HttpResponse("%(name)s was deleted" % {'name' : filter_name})
 
 
 

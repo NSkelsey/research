@@ -16,7 +16,10 @@ urlpatterns = patterns('',
     url(r'out_form', views.out_form),
     url(r'jsfun', views.hit_js),
     url(r'dbs', views.present_dbs),
+    url(r'filter/(?P<filter_name>\S+)/delete$', views.delete_filter),
     url(r'filter/(?P<filter_name>\S+)/$', views.show_filter),
+    url(r'filter/(?P<filter_name>\S+)/save$', views.save_filter),
+    url(r'filter/(?P<filter_name>\S+)/expression$', views.show_expression),
     # url(r'^ajax_time/', include('ajax_time.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:

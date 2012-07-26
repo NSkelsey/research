@@ -37,11 +37,11 @@ function delete_div(selector, type){
 
 $(document).ready(function() {
   //$("tr #id_filter_selector").change(display)
-  $("p.duplicate").click(function() {
+  $("a.duplicate").click(function() {
     var div = $(this).closest("div")
     cloneMore(div, "form"); 
   });
-  $("p.delete").click(function() {
+  $("a.delete").click(function() {
     var div = $(this).closest("div");
     delete_div(div, "form");
   });

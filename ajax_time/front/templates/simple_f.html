@@ -1,60 +1,8 @@
-{% extends 'base.html' %}
-{% block content %}
+{% extends 'filter.html' %}
 {% load template_extensions %}
 
-<script src="/static/jquery-1.7.2.js"></script>
-<script type=text/javascript>
-
-
-
-
-  /* $(document).ready(function(){
-     $(".table_fields").css("display","none");
-     $("label[for!='id_patient_field_selector']").css("display", "none");
-     $("#id_patient_field_selector").css("display", "block");
-
-     $("#id_type_selector").change(function(){
-     $(".table_fields").css("display","none");
-     var val = $("#id_type_selector").val();
-
-     val = "id_" + val + "_field_selector";
-
-     var label = "label[for!='" + val + "']";
-     var label_id = "label[for='" + val + "']";
-     val = "#" + val;
-
-     $(label).css("display", "none");
-     $(label_id).css("display","block");
-
-     $(val).css("display", "block");
-     $(val).css("display", "block");
-
-
-     });
-
-
-
-
-     }
-     );*/
-function cloneMore(selector, type) {
-    var newElement = $(selector).clone(true);
-    var total = $('#id_' + type + '-TOTAL_FORMS').val();
-    newElement.find(':input').each(function() {
-        var name = $(this).attr('name').replace('-' + (total-1) + '-','-' + total + '-');
-        var id = 'id_' + name;
-        $(this).attr({'name': name, 'id': id});
-    });
-    newElement.find('label').each(function() {
-        var newFor = $(this).attr('for').replace('-' + (total-1) + '-','-' + total + '-');
-        $(this).attr('for', newFor);
-    });
-    total++;
-    $('#id_' + type + '-TOTAL_FORMS').val(total);
-    $(selector).after(newElement);
-}
-
-
+{% block head_of_form %}
+<script>
 
 function display() {
 
@@ -71,72 +19,16 @@ function display() {
 
 
 
-$(document).ready(function() {
-    $("tr #id_filter_selector").change(display)
-    $("#id_form-0-logical_operation").change(function() {
-      cloneMore("div.mytable:last", "form"); 
-      });
-    });
-
-
-var t_count = 0;
-function duplicate_table() {
-  $("tbody").each(function(i, domEle){
-      $(this).closest("table").find("tr #id_logical_operation").attr("onchange", "");
-      });
-  var and = $("#id_filter_selector").closest("table").clone()
-    and.find("tr #id_logical_operation").attr("onchange", "duplicate_table()");
-  and.attr("id", "clone").appendTo($("#out_form"));
-  and.find("tr #id_filter_selector").change(display);
-};
-
-
-
-
-
-function changeFilter(){
-  var class_ = $(this).attr("value");
-  var tbody = $(this).closest("table");
-  tbody.find("tr:not(." + class_ + ")").css("display", "none");
-  tbody.find("tr (." + class_ + ")").css("display", "block");
-
-}
-
-
-
 </script>
-
 
 <form id="out_form" method=post action="out_form" target="_newtab">
   {{ db_form }}
-  {{ ofset.management_form }}
-  <div class="mytable" >
-    {% for outform in ofset.forms %}
-    <table >
-      {{ outform.as_table }} 
-    </table>
-    {% endfor %}
-  </div>
-  <input id="btn" type=submit value=Submit?
-  >
+
+{% endblock %}
+
+{% block end_of_form %}
+  <input id="btn" type=submit value=Submit? >
 </form>
 
-
-{% endblock content %}
-
-{% comment %}
-<!-- <table id=out_table>
-      {% for field in outform %}
-      {% if field.name == "logical_operation" %}
-      <tr id=id_{{ field.name }} >
-        <th> {{ field.label_tag }}  </th> <td> {{ field }} </td> <td></td>
-      </tr>
-      {% else %}
-      <tr id=id_{{ field.name }} class={{ field|class }}>
-        <th> {{ field.label_tag }}  </th> <td> {{ field }} </td>
-      </tr>
-      {% endif %}
-      {% endfor %}
-    </table> -->
-{% endcomment %}
+{% endblock %}
 

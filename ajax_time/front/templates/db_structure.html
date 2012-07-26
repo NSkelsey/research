@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4> Database Tree </h4>
+{% autoescape off %}
+{{ db_tree|unordered_list }}
+{% endautoescape %}
+
+<h4> Unassociated Filters </h4>
+<ul>
+{% for f in filters %}
+<li class=filter > {{ f.name }} <a href=/filter/{{ f.name}} > link </a> </li>
+{% endfor %}
+</ul>
+
+{% endblock %}

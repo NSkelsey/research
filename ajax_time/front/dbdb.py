@@ -48,7 +48,9 @@ class Db_relation(Base):
     parent_db_name = Column(String(100), ForeignKey("db_table.name"), primary_key=True)
     child_db_name = Column(String(100), ForeignKey("db_table.name"), primary_key=True )
     filter_name = Column(String(30), ForeignKey("filter_table.name"), primary_key=True, autoincrement=True)
-    _filter = relationship("Filter", backref="db_relation")
+    _filter = relationship("Filter", 
+            backref=backref("db_relation", cascade="all, delete"),
+            )
     parent  = relationship("Db", 
             primaryjoin="Db_relation.parent_db_name==Db.name",
             backref="parent_relations",
@@ -84,7 +86,11 @@ class Filter_form(Base):
     filter_name = Column(String(30), ForeignKey("filter_table.name"), primary_key=True)
     pos = Column(Integer, primary_key=True, autoincrement=False)
     form_blob = Column(BLOB)
-    _filter = relationship("Filter", backref=backref("forms", order_by="Filter_form.pos"))
+    _filter = relationship("Filter",
+            backref=backref("forms",
+                    cascade="all, delete", 
+                    order_by="Filter_form.pos",),
+            )
 
     def __init__(self, value_dict={}, pos=0):
         self.value_dict = value_dict

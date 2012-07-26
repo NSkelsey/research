@@ -1,0 +1,23 @@
+{% extends 'filter.html' %}
+{% block head_of_form %}
+
+<form id="filter" method=post action="save">
+<a href="/filter/{{ ff.name.value }}/expression" >View Expression</a>
+<a href="/filter/{{ ff.name.value }}/delete" >Delete Filter</a>
+{% if msg %}
+<div> {{ msg }} </div>
+<br>
+{% endif %}
+
+  {{ ff }}
+
+{% endblock %}
+
+
+
+{% block end_of_form %}
+   <input id="btn" type=submit value=Save >
+ </form>
+{% endblock %}
+
+
