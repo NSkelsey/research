@@ -55,8 +55,6 @@ def make_expression(filter_dict , name):
     if filter_sel == "event_type":
         e_t = filter_dict["event_type"]
         ret = master_record.event_type==e_t
-        embed()
-
     if filter_dict["not_op"]:
         ret = not_(ret)
     return ret

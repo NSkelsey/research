@@ -34,9 +34,58 @@ function delete_div(selector, type){
 
 }
 
+// for filter_selector
+function hide_trs(sel){
+  var choice = sel.val();
+  sel.closest("tbody").children().each(function(){
+    if ($(this).find("." + choice).length){
+      $(this).css("display", "table-row");
+    } 
+    else if ($(this).find(".filter_selector").length){
+      $(this).css("display", "table-row");
+    }
+    else if ($(this).find(".notfilter").length){
+      $(this).css("display", "table-row");
+    }
+    else if ($(this).find(".filter_choice").length){
+      $(this).css("display", "table-row");
+    }
+    else {
+      $(this).css("display", "none");
+    }
+  });
+}
+
+function hide_on_filter_choice(sel){
+  var val = sel.val();
+  if (val != "new_form"){
+    sel.closest("tbody").children().each(function(){
+      if ($(this).find(".notfilter").length)
+        {
+          $(this).css("display", "table-row");
+        } 
+        else if ($(this).find(".filter_choice").length)
+        {
+          $(this).css("display", "table-row");
+        }
+        else
+          {
+          $(this).css("display", "none");
+          }
+    });
+  } else {
+    var choice = sel.closest("tbody").find("select.filter_selector")
+    hide_trs(choice);
+  }
+}
 
 $(document).ready(function() {
-  //$("tr #id_filter_selector").change(display)
+  $("select.filter_selector").each(function() {
+    hide_trs($(this));
+  });
+  $("select.filter_choice").each(function() {
+    hide_on_filter_choice($(this));
+  });
   $("a.duplicate").click(function() {
     var div = $(this).closest("div")
     cloneMore(div, "form"); 
@@ -45,6 +94,16 @@ $(document).ready(function() {
     var div = $(this).closest("div");
     delete_div(div, "form");
   });
+
+  $("select.filter_selector").change(function() {
+    hide_trs($(this));
+  });
+
+  $("select.filter_choice").change(function() {
+    var sel = $(this);
+    hide_on_filter_choice(sel);
+  });
+
 });
 
 
@@ -59,6 +118,21 @@ function duplicate_table() {
   and.attr("id", "clone").appendTo($("#out_form"));
   //and.find("tr #id_filter_selector").change(display);
 };
+
+
+function display() {
+
+  var class_ = $(this).attr("value");
+  var tbody = $(this).closest("table");
+  tbody.find("tr:not(." + class_ + ")").css("display","none");
+  tbody.find("." + class_ + "").css("display", "table-row");
+  $(this).closest("tr").css("display", "table-row");
+  tbody.find(".notfilter").css("display","table-row");
+  tbody.find("#id_logical_operation").closest("tr").css("display","table-row");
+
+};
+
+
 
 
 

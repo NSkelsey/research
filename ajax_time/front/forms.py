@@ -83,7 +83,6 @@ class FilterForm(forms.Form):
 class OutForm(forms.Form):
     filter_choice = forms.ChoiceField(required=False, label="Use filter:")
     filter_selector = forms.ChoiceField(choices=filters,initial="device_type",
-                                        widget=forms.Select(attrs={'onchange' : "changeFilter()"}),
                                         required=False,
                                         )
     date_from = forms.DateField(required=False)
@@ -115,6 +114,7 @@ class OutForm(forms.Form):
         self.fields['event_type'].widget.attrs['class'] = "event_type"
         self.fields['logical_operation'].widget.attrs['class'] = "notfilter"
         self.fields['not_op'].widget.attrs['class'] = "notfilter"
+        self.fields['filter_selector'].widget.attrs['class'] = "filter_selector"
         s = make_dbdb_session()
         f_li =  [(i.name,i.name) for i in s.query(Filter).all()]
         f_li.append(("new_form", "New generic form"))

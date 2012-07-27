@@ -2,24 +2,7 @@
 {% load template_extensions %}
 
 {% block head_of_form %}
-<script>
 
-function display() {
-
-  var class_ = $(this).attr("value");
-  var tbody = $(this).closest("table");
-  tbody.find("tr:not(." + class_ + ")").css("display","none");
-  tbody.find("." + class_ + "").css("display", "table-row");
-  $(this).closest("tr").css("display", "table-row");
-  tbody.find(".notfilter").css("display","table-row");
-  tbody.find("#id_logical_operation").closest("tr").css("display","table-row");
-
-
-};
-
-
-
-</script>
 
 <form id="out_form" method=post action="out_form" target="_newtab">
   {{ db_form }}
