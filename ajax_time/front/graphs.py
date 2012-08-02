@@ -12,7 +12,7 @@ from datetime import date
 def make_img_tag(fig):
 
     imgdata = StringIO.StringIO()
-    fig.savefig(imgdata, format='png')
+    fig.savefig(imgdata, format='png', bbox_inches="tight")
     imgdata.seek(0)  # rewind the data
 
     uri = 'data:image/png;base64,' + urllib.quote(base64.b64encode(imgdata.buf))

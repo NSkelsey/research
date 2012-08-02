@@ -465,10 +465,10 @@ import numpy as np
 
 def make_naive_graphs(request, db_name):
     s = make_input_db_session(db_name, echo=True)
-    ret = s.query(table_mapping_no_eager_loading.master_record).all()
+    mrs_ret = s.query(table_mapping_no_eager_loading.master_record).all()
     start = date(1996,10,1)
     end = date(2012,12,12)
-    x, y = segment_mr_month(ret, start, end)
+    x, y = segment_mr_month(mrs_ret, start, end)
     plt.bar(x, y, width=10)
     ax = plt.subplot(111)
     years    = mdates.YearLocator()   # every year
@@ -500,14 +500,39 @@ def make_naive_graphs(request, db_name):
     counts = [len(i.device_problems) for i in top_25]
     labels = [i.problem_description for i in top_25]
     pos = range(len(top_25))
-
     plt.barh(pos, counts, color="green")
+    ax = plt.subplot(111)
+    ax.grid(True)
     plt.yticks(pos, labels)
     fig = plt.gcf()
-    fig.set_figwidth(15)
+    fig.set_figwidth(20)
+    fig.set_figheight(12)
 
+
+
+
+
+
+
+    html = html + "<br> <br>" + make_img_tag(fig)
+    plt.close()
+
+    event_type_dict = {}
+    for m_r in mrs_ret:
+        if event_type_dict.get(m_r.event_type):
+            event_type_dict[m_r.event_type] += 1
+        else:
+            event_type_dict[m_r.event_type] = 1
+
+    labels = event_type_dict.keys()
+    counts = [event_type_dict[i] for i in labels]
+    pos = range(len(labels))
+    plt.bar(pos, counts, color="teal")
+    plt.xticks(pos, labels)
+    fig = plt.gcf()
     html = html + "<br>" + make_img_tag(fig)
     plt.close()
+
     s.close()
 
 
