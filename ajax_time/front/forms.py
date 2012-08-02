@@ -151,6 +151,7 @@ class SelectForm(forms.Form):
 s = make_dbdb_session()
 ret_prox = s.query(Db).all()
 dbs = [(i.name, i.name) for i in ret_prox]
+s.close()
 
 class RawForm(forms.Form):
     db_to_select_from = forms.ChoiceField(choices=dbs, required=True)

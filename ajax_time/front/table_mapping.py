@@ -246,7 +246,6 @@ FOI_text.master_record = relationship("master_record",
         foreign_keys=[FOI_text.MDR_report_key],
         backref=backref(
             'text_records', 
-            order_by=FOI_text.text_key,
             uselist=True,
             lazy="joined",
             )

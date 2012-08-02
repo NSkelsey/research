@@ -1,6 +1,8 @@
 import time
 from datetime import datetime
+from datetime import date
 
+import matplotlib.pyplot as plt
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.http import HttpResponse
@@ -128,7 +130,7 @@ def out_form(request):
                 {"name":db_form.cleaned_data["filter_name"]})
 
         base_q = base_q.filter(filter_to_commit.expression)
-        base_q = base_q.limit(10).\
+        base_q = base_q.\
                         options(joinedload(device.problems), joinedload(device.master_record))
         ret_o = base_q.all()
 
@@ -180,9 +182,12 @@ def out_form(request):
         db_entry.child_relations.append(relation)
         dbdb_session.add(db_entry)
         dbdb_session.commit()
+        dbdb_session.close()
+        del engine1
 
         engine1b = create_engine('mysql://root@localhost:3306/' + db_name)
         Base.metadata.create_all(bind=engine1b)
+        del engine1b
 
         engine2 = create_engine('mysql://root@localhost:3306/' + db_name, echo=ECHO)
         nDBSesh = sessionmaker(bind=engine2)()
@@ -205,6 +210,10 @@ def out_form(request):
             return s + " ON DUPLICATE KEY UPDATE " + rems
         nDBSesh.add_all(li_to_commit)
         nDBSesh.commit()
+        nDBSesh.execute("CREATE INDEX date_index ON master_table (date_report)")
+        nDBSesh.execute("CREATE INDEX mdr_key_index ON text_table (MDR_report_key)")
+        nDBSesh.close()
+        del engine2
         #redefining add_string prevents insert dying on other things
         @compiles(Insert)
         def add_string(insert, compiler, **kw):
@@ -233,6 +242,7 @@ def simple_form(request):
     ret_prox = s.query(Db).all()
     dbs = [(i.name, i.name) for i in ret_prox]
     db_form.fields['input_db'].choices = dbs
+    s.close()
     return render_to_response('simple_f.html',
             {'formset': ofset, "db_form" : db_form},
             context_instance=RequestContext(request))
@@ -367,6 +377,7 @@ def present_dbs(request):
 
     f_li = session.query(Filter).outerjoin("db_relation").filter(Db_relation.filter_name == None).all()
     filters = f_li
+    session.close()
     return render_to_response("db_structure.html",
             {"db_tree" : db_tree, "filters" : filters},
             context_instance=RequestContext(request),
@@ -390,7 +401,7 @@ def show_filter(request, filter_name=None):
         ff = FilterForm(initial={"name": filter_name, "comment":fil_to_show.comment})
         _dict["formset"] = formset
         _dict["ff"] = ff
-
+        s.close()
         return render_to_response("just_filter.html",
                 _dict,
                 context_instance=RequestContext(request),
@@ -440,6 +451,53 @@ def delete_filter(request, filter_name):
     s.commit()
     s.close()
     return HttpResponse("%(name)s was deleted" % {'name' : filter_name})
+
+
+
+
+from graphs import segment_mr_month, make_img_tag
+import table_mapping_no_eager_loading
+import matplotlib.dates as mdates
+import matplotlib.mlab as mlab
+import matplotlib.cbook as cbook
+
+
+def make_naive_graphs(request, db_name):
+    s = make_input_db_session(db_name, echo=True)
+    ret = s.query(table_mapping_no_eager_loading.master_record).all()
+    s.close()
+    start = date(1996,10,1)
+    end = date(2012,12,12)
+    x, y = segment_mr_month(ret, start, end)
+    plt.bar(x, y, width=10)
+    ax = plt.subplot(111)
+    years    = mdates.YearLocator()   # every year
+    months   = mdates.MonthLocator()  # every month
+    yearsFmt = mdates.DateFormatter('%Y')
+
+    ax.xaxis.set_major_locator(years)
+    ax.xaxis.set_major_formatter(yearsFmt)
+    ax.xaxis.set_minor_locator(months)
+
+    ax.set_xlim(start, end)
+    ax.grid(True)
+    
+    labels = ax.get_xticklabels() 
+    for label in labels: 
+        label.set_rotation(30) 
+
+
+
+    fig = plt.gcf()
+    html = make_img_tag(fig)
+    fig.autofmt_xdate()
+    plt.close()
+
+    html = html + "<br>" + str(y)
+    return render_to_response("db_graph.html",
+            {"html" : html},
+            context_instance=RequestContext(request),
+            )
 
 
 

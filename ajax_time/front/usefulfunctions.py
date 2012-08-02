@@ -25,10 +25,16 @@ def print_state(obj):
 
     print type(obj)
 
+open_conns = {}
+
 def make_input_db_session(input_db_name, echo=False):
-    s = 'mysql://dba@localhost:3306/%s' % input_db_name
-    engine = create_engine(s, echo=echo)
-    Session = sessionmaker(bind=engine)
+    if open_conns.get(input_db_name) is None:
+        s = 'mysql://dba@localhost:3306/%s' % input_db_name
+        engine = create_engine(s, echo=echo)
+        Session = sessionmaker(bind=engine)
+        open_conns[input_db_name] = Session
+    else:
+        Session = open_conns[input_db_name]
     return Session()
 
 

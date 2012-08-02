@@ -45,17 +45,21 @@ class Db(Base):
 
 class Db_relation(Base):
     __tablename__ = "db_relation_table"
-    parent_db_name = Column(String(100), ForeignKey("db_table.name"), primary_key=True)
-    child_db_name = Column(String(100), ForeignKey("db_table.name"), primary_key=True )
-    filter_name = Column(String(30), ForeignKey("filter_table.name"), primary_key=True, autoincrement=True)
+    parent_db_name = Column(String(100), primary_key=True)
+    child_db_name = Column(String(100), primary_key=True )
+    filter_name = Column(String(30), primary_key=True)
     _filter = relationship("Filter", 
+            foreign_keys=[filter_name],
+            primaryjoin="Db_relation.filter_name==Filter.name",
             backref=backref("db_relation", cascade="all, delete"),
             )
     parent  = relationship("Db", 
+            foreign_keys=[parent_db_name],
             primaryjoin="Db_relation.parent_db_name==Db.name",
             backref="parent_relations",
             )
     child = relationship("Db",
+            foreign_keys=[child_db_name],
             primaryjoin="Db_relation.child_db_name==Db.name",
             backref="child_relations",
             )
