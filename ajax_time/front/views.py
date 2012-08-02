@@ -460,12 +460,12 @@ import table_mapping_no_eager_loading
 import matplotlib.dates as mdates
 import matplotlib.mlab as mlab
 import matplotlib.cbook as cbook
+import numpy as np
 
 
 def make_naive_graphs(request, db_name):
     s = make_input_db_session(db_name, echo=True)
     ret = s.query(table_mapping_no_eager_loading.master_record).all()
-    s.close()
     start = date(1996,10,1)
     end = date(2012,12,12)
     x, y = segment_mr_month(ret, start, end)
@@ -492,6 +492,25 @@ def make_naive_graphs(request, db_name):
     html = make_img_tag(fig)
     fig.autofmt_xdate()
     plt.close()
+
+    ret = s.query(problem_code).all()
+
+    ret.sort(key=lambda x: len(x.device_problems))
+    top_25 = ret[::-1][:25]
+    counts = [len(i.device_problems) for i in top_25]
+    labels = [i.problem_description for i in top_25]
+    pos = range(len(top_25))
+
+    plt.barh(pos, counts, color="green")
+    plt.yticks(pos, labels)
+    fig = plt.gcf()
+    fig.set_figwidth(15)
+
+    html = html + "<br>" + make_img_tag(fig)
+    plt.close()
+    s.close()
+
+
 
     html = html + "<br>" + str(y)
     return render_to_response("db_graph.html",
