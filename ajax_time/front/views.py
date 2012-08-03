@@ -469,7 +469,7 @@ def make_naive_graphs(request, db_name):
     start = date(1996,10,1)
     end = date(2012,12,12)
     x, y = segment_mr_month(mrs_ret, start, end)
-    plt.bar(x, y, width=10)
+    plt.bar(x, y, width=10, color="black")
     ax = plt.subplot(111)
     years    = mdates.YearLocator()   # every year
     months   = mdates.MonthLocator()  # every month

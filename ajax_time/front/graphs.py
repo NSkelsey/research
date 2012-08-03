@@ -20,7 +20,14 @@ def make_img_tag(fig):
     return html
 
 def segment_mr_month(mr_list, start_date=date(1996,12,12), end_date=date(2012,12,12)):
-    date_list = [i.date_report for i in mr_list if i.date_report]
+    e_key = {}
+    for i in mr_list:
+        if e_key.get(i.event_key) is not None:
+            pass
+        else:
+            e_key[i.event_key] = i
+    mr_list = e_key.values()
+    date_list = [i.date_event for i in mr_list if i.date_event]
     date_list.sort()
     print len(date_list)
     cdate = start_date

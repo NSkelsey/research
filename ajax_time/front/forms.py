@@ -51,7 +51,8 @@ type_li = [
         ]
 
 filters = [
-        ("date", "date filter"),
+        ("date_report", "date of report"),
+        ("date_event", "date of event"),
         ("device_type", "device type"),
         ("manufacturer", "manufacturer name"),
         ("event_type", "event type"),
@@ -106,8 +107,8 @@ class OutForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super(forms.Form, self).__init__(*args, **kwargs)
-        self.fields['date_from'].widget.attrs['class'] = "date"
-        self.fields['date_to'].widget.attrs['class'] = "date"
+        self.fields['date_from'].widget.attrs['class'] = "date_report date_event"
+        self.fields['date_to'].widget.attrs['class'] = "date_report date_event"
         self.fields['device_type'].widget.attrs['class'] = "device_type"
         self.fields['device_contains'].widget.attrs['class'] = "device_type"
         self.fields['manufacturer_name'].widget.attrs['class'] = "manufacturer"

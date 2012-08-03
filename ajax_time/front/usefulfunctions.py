@@ -51,10 +51,14 @@ def make_expression(filter_dict , name):
             ret = device.generic_name.contains(d_t)
         else:
             ret = device.generic_name==d_t
-    if filter_sel == "date":
+    if filter_sel == "date_report":
         date_to = filter_dict["date_to"]
         date_from = filter_dict["date_from"]
         ret = master_record.date_report.between(date_from, date_to)
+    if filter_sel == "date_event":
+        date_to = filter_dict["date_to"]
+        date_from = filter_dict["date_from"]
+        ret = master_record.date_event.between(date_from, date_to)
     if filter_sel == "manufacturer":
         man_name = filter_dict["manufacturer_name"]
         ret = device.manufacturer_name.contains(man_name)
